@@ -1,14 +1,14 @@
-# Simple Redis-based Load Balancer
+# Redis-based Least Connections Load Balancer
 
-A lightweight HTTP load balancer implementation using Go, Gin framework, and Redis for tracking server loads.
+A lightweight HTTP load balancer implementation using Go, Gin framework, and Redis that distributes traffic using the Least Connections algorithm.
 
 ## Overview
 
-This project implements a basic load balancing service that distributes incoming requests across multiple backend servers. It uses Redis sorted sets to keep track of the current load on each server and directs new requests to the server with the lowest current load.
+This project implements a load balancing service that distributes incoming requests across multiple backend servers using the Least Connections algorithm. It uses Redis sorted sets to track the current number of active connections on each server and directs new requests to the server handling the fewest connections at any given moment.
 
 ## Features
 
-- Server selection based on current load using Redis sorted sets
+- Least Connections load balancing strategy using Redis sorted sets
 - Dynamic scoring system that increments when a server receives a request and decrements when processing is complete
 - Basic server health checking through a heartbeat endpoint
 - Simple HTTP request forwarding
@@ -42,10 +42,12 @@ go run main.go
 
 1. The load balancer initializes a Redis sorted set with all backend server ports, each with an initial score of 0
 2. When a request comes in:
-   - The server with the lowest score is selected
-   - Its score is incremented by 1
+   - The server with the lowest score (fewest active connections) is selected using `ZRangeWithScores`
+   - Its score is incremented by 1 to represent an active connection
    - The request is forwarded to that server
-   - Upon completion, the server's score is decremented by 1
+   - Upon completion, the server's score is decremented by 1, indicating the connection is closed
+
+This implementation of the Least Connections algorithm ensures that traffic is distributed based on actual server load rather than simple round-robin distribution, potentially leading to better resource utilization.
 
 ## Areas for Improvement
 
@@ -64,10 +66,10 @@ go run main.go
 - Implement connection pooling for better performance
 - Add timeouts for Redis operations and HTTP requests
 
-### Load Balancing Algorithm
-- Improve server selection strategy to avoid the "thundering herd" problem
-- Consider weighted round-robin or other advanced algorithms
-- Add support for server weights or priority levels
+### Load Balancing Algorithm Enhancements
+- Consider a weighted least connections approach accounting for server capacity differences
+- Implement a hybrid algorithm that considers both connection count and response time
+- Add a "smoothing" mechanism to prevent rapid oscillation between servers
 
 ### Concurrency Handling
 - Make score increment/decrement operations atomic to prevent race conditions
